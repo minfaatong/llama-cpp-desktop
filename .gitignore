@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+out/
+release/
+*.exe
+*.msi
+*.zip
+*.7z
+*.blockmap
+builder-debug.yml
+
+# local runtime state
+desktop-state.json
+*.log
+logs/
+
+# llama.cpp / model files
+models/
+*.gguf
+*.ggml
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.onnx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

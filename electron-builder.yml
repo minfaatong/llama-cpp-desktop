@@ -12,5 +12,11 @@ win:
   target:
     - portable
   artifactName: Llama.cpp-Desktop.${ext}
+mac:
+  target:
+    - dmg
+linux:
+  target:
+    - AppImage
 asar: true
 compression: normal

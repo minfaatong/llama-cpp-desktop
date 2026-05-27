@@ -8,10 +8,23 @@ on:
 permissions:
   contents: write
 
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
 jobs:
-  build-windows:
-    name: Build Windows portable exe
-    runs-on: windows-latest
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - name: Checkout
@@ -26,19 +39,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build portable exe
+      - name: Build assets
         run: npm run dist
 
       - name: Generate checksum
-        shell: pwsh
+        shell: bash
         run: |
-          $hash = Get-FileHash -LiteralPath "dist/Llama.cpp-Desktop.exe" -Algorithm SHA256
-          "$($hash.Hash)  Llama.cpp-Desktop.exe" | Set-Content -LiteralPath "dist/Llama.cpp-Desktop.exe.sha256" -Encoding ascii
+          cd dist
+          for file in *; do
+            if [[ "$file" == *".exe" || "$file" == *".dmg" || "$file" == *".AppImage" ]]; then
+              sha256sum "$file" > "$file.sha256"
+            fi
+          done
 
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
-          name: Llama.cpp 桌面 ${{ github.ref_name }}
-          files: |
-            dist/Llama.cpp-Desktop.exe
-            dist/Llama.cpp-Desktop.exe.sha256
+          name: Llama.cpp Desktop ${{ github.ref_name }}
+          files: dist/**/*

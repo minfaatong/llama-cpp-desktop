@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import kill from 'tree-kill'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -12,9 +13,13 @@ const preloadPath = path.join(__dirname, 'preload.cjs')
 const rendererPath = path.join(rootDir, 'renderer', 'index.html')
 const iconPath = path.join(rootDir, 'assets', 'llama-cpp.ico')
 const trayIconPath = path.join(rootDir, 'assets', 'llama-cpp-tray.png')
-const authoredBaseDir = 'G:\\llama.cpp\\llama.cpp启动器'
-const authoredServerPath = 'G:\\llama.cpp\\llama-b8272-bin-win-cuda-12.4-x64\\llama-server.exe'
-const authoredServerDir = path.dirname(authoredServerPath)
+
+const IS_WIN = process.platform === 'win32'
+const BIN_EXT = IS_WIN ? '.exe' : ''
+
+function getBinaryName(name) {
+  return `${name}${BIN_EXT}`
+}
 
 let mainWindow = null
 let tray = null
@@ -33,12 +38,11 @@ let logs = []
 
 function defaultBaseDir() {
   const candidates = [
-    authoredBaseDir,
     path.resolve(rootDir, '..'),
     path.dirname(process.execPath),
     path.resolve(path.dirname(process.execPath), '..'),
   ]
-  return candidates.find(candidate => existsSync(path.join(candidate, 'config.toml'))) || authoredBaseDir
+  return candidates.find(candidate => existsSync(path.join(candidate, 'config.toml'))) || rootDir
 }
 
 function defaultConfigPath() {
@@ -46,7 +50,7 @@ function defaultConfigPath() {
 }
 
 function defaultLauncherPath() {
-  return path.join(defaultBaseDir(), 'llama-server-launcher.exe')
+  return path.join(defaultBaseDir(), getBinaryName('llama-server-launcher'))
 }
 
 function defaultStatePath() {
@@ -58,8 +62,8 @@ function defaultConfig() {
     launch_mode: 'direct',
     launcher_path: defaultLauncherPath(),
     config_path: defaultConfigPath(),
-    llama_bin_dir: authoredServerDir,
-    llama_server_path: authoredServerPath,
+    llama_bin_dir: rootDir,
+    llama_server_path: path.join(rootDir, getBinaryName('llama-server')),
     model: '',
     mmproj: '',
     host: '0.0.0.0',
@@ -309,7 +313,7 @@ function normalizeConfig(values, state = {}) {
     ...merged,
     launch_mode: launchMode,
     llama_bin_dir: llamaBinDir,
-    llama_server_path: path.join(llamaBinDir, 'llama-server.exe'),
+    llama_server_path: path.join(llamaBinDir, getBinaryName('llama-server')),
     port: toNumber(merged.port, base.port),
     ctx_size: toNumber(merged.ctx_size, base.ctx_size),
     n_predict: toNumber(merged.n_predict, base.n_predict),
@@ -929,7 +933,7 @@ function updateTrayMenu() {
         if (serverChild && serverChild.exitCode === null) {
           stoppingServer = true
           setStatus({ state: 'stopping', message: '正在停止服务' })
-          await taskkill(serverChild.pid)
+          await terminateProcess(serverChild.pid)
         }
       },
     },
@@ -992,7 +996,7 @@ function createMainWindow() {
     event.preventDefault()
     mainWindow.hide()
     mainWindow.setSkipTaskbar(true)
-    if (!firstHideNoticeShown) {
+    if (IS_WIN && !firstHideNoticeShown) {
       firstHideNoticeShown = true
       tray?.displayBalloon?.({
         title: 'Llama.cpp Desktop 仍在运行',
@@ -1005,14 +1009,14 @@ function createMainWindow() {
   Menu.setApplicationMenu(null)
 }
 
-async function taskkill(pid) {
+async function terminateProcess(pid) {
   await new Promise(resolve => {
-    const child = spawn('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
-      windowsHide: true,
-      stdio: 'ignore',
+    kill(pid, 'SIGKILL', error => {
+      if (error) {
+        addLog('desktop', `终止进程失败 (PID ${pid}): ${error.message}`)
+      }
+      resolve()
     })
-    child.once('exit', resolve)
-    child.once('error', resolve)
   })
 }
 
@@ -1075,14 +1079,17 @@ function registerIpc() {
     addLog('desktop', `启动器：${config.launcher_path}`)
     addLog('desktop', `配置：${config.config_path}`)
 
+    const pathEnvVar = IS_WIN ? 'Path' : 'PATH'
+    const pathSeparator = path.delimiter
+
     serverChild = spawn(command, args, {
       cwd,
-      windowsHide: true,
+      ...(IS_WIN ? { windowsHide: true } : {}),
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         NO_COLOR: '1',
-        Path: `${serverDir};${process.env.Path || process.env.PATH || ''}`,
+        [pathEnvVar]: `${serverDir}${pathSeparator}${process.env[pathEnvVar] || process.env.PATH || process.env.Path || ''}`,
       },
     })
 
@@ -1112,7 +1119,7 @@ function registerIpc() {
     if (serverChild && serverChild.exitCode === null) {
       stoppingServer = true
       setStatus({ state: 'stopping', message: '正在停止服务' })
-      await taskkill(serverChild.pid)
+      await terminateProcess(serverChild.pid)
     }
     return appState()
   })
@@ -1485,7 +1492,7 @@ if (!gotLock) {
     if (serverChild && serverChild.exitCode === null && !stoppingServer) {
       event.preventDefault()
       stoppingServer = true
-      await taskkill(serverChild.pid)
+      await terminateProcess(serverChild.pid)
       app.quit()
     }
   })

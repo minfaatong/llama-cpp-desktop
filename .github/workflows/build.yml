@@ -5,16 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+permissions:
+  contents: write
 
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.bump.outputs.version }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,10 +22,12 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Delete existing release for this version if any
+      - name: Delete existing release & tag for current version
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          gh release delete "v${VERSION}" --yes --cleanup-tag 2>/dev/null || true
+          gh release delete "v$(node -p "require('./package.json').version")" --yes --cleanup-tag 2>/dev/null || true
 
       - name: Auto-bump patch version
         id: bump
@@ -39,12 +39,23 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Commit and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.bump.outputs.version }}"
           git add package.json
           git commit -m "chore: bump to v${VERSION}"
           git tag "v${VERSION}"
           git push origin main --tags
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.bump.outputs.version }}" \
+            --title "Llama.cpp Desktop v${{ steps.bump.outputs.version }}" \
+            --generate-notes \
+            --draft
 
   build:
     needs: version
@@ -94,41 +105,34 @@ jobs:
         run: |
           rm -rf dist/*-unpacked dist/builder-debug.yml dist/builder-effective-config.yaml 2>/dev/null
 
-      - name: Rename artifact
+      - name: Upload build to release
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          for f in dist/*.{exe,dmg,AppImage}; do
+          VERSION="${{ needs.version.outputs.version }}"
+          ARCH="${{ matrix.config.arch }}"
+          dist_dir="dist"
+
+          for f in "${dist_dir}"/*.exe "${dist_dir}"/*.dmg "${dist_dir}"/*.AppImage; do
             [ -f "$f" ] || continue
             ext="${f##*.}"
             base="$(basename "$f" ".${ext}")"
             dir="$(dirname "$f")"
             name="${base%-x64}"
             name="${name%-arm64}"
-            mv "$f" "${dir}/Llama.cpp-Desktop-${{ needs.version.outputs.version }}-${{ matrix.config.arch }}.${ext}"
+            renamed="${dir}/Llama.cpp-Desktop-${VERSION}-${ARCH}.${ext}"
+            mv "$f" "$renamed"
+            gh release upload "v${VERSION}" "$renamed" --clobber
           done
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-${{ matrix.config.arch }}
-          path: dist/*.{exe,dmg,AppImage}
-
-  release:
+  publish:
+    if: always()
     needs: [version, build]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: artifacts-*
-          merge-multiple: true
-          path: dist/
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ needs.version.outputs.version }}
-          name: Llama.cpp Desktop v${{ needs.version.outputs.version }}
-          files: dist/*
-          fail_on_unmatched_files: false
-          generate_release_notes: true
+      - name: Publish release (remove draft)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "v${{ needs.version.outputs.version }}" --draft=false

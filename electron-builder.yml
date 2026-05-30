@@ -13,7 +13,7 @@ win:
     - portable
   artifactName: Llama.cpp-Desktop-${arch}.${ext}
 mac:
-  icon: assets/llama-cpp.png
+  icon: assets/llama-cpp-512.png
   target:
     - dmg
   artifactName: Llama.cpp-Desktop-${arch}.${ext}

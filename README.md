@@ -4,13 +4,19 @@
   <h1>Llama.cpp Desktop</h1>
 
   <p>
-    一个给 Windows 本地 llama.cpp 准备的桌面端控制面板。
+    A cross-platform desktop control panel for running and chatting with a local llama.cpp server.
     <br />
-    启动服务、配置模型、查看日志、直接聊天和接入 OpenAI Compatible 客户端，都放在一个窗口里。
+    Start the server, configure models, view logs, chat directly, or connect OpenAI-compatible clients — all in one window.
   </p>
 
   <p>
-    <img alt="Windows" src="https://img.shields.io/badge/Windows-10%20%2F%2011-506f51?style=flat-square" />
+    <a href="README.md">English</a> · <a href="README.zh.md">中文</a>
+  </p>
+
+  <p>
+    <img alt="Windows" src="https://img.shields.io/badge/Windows-x64-506f51?style=flat-square" />
+    <img alt="macOS" src="https://img.shields.io/badge/macOS-Apple_Silicon-506f51?style=flat-square" />
+    <img alt="Linux" src="https://img.shields.io/badge/Linux-x64_%7C_ARM64-506f51?style=flat-square" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-41-506f51?style=flat-square" />
     <img alt="llama.cpp" src="https://img.shields.io/badge/llama.cpp-local-506f51?style=flat-square" />
     <img alt="License" src="https://img.shields.io/badge/license-MIT-151713?style=flat-square" />
@@ -19,77 +25,81 @@
 
 ![Llama.cpp Desktop preview](docs/desktop-preview.svg)
 
-## 亮点
+## Features
 
-| 功能 | 说明 |
+| Feature | Description |
 | --- | --- |
-| 本地直连 | 直接启动 llama.cpp 原版目录里的 `llama-server.exe`，不强依赖额外启动器 |
-| OpenAI 兼容 | 默认提供 `http://127.0.0.1:8080/v1`，可接入 OpenClaw、Claude Code 等客户端 |
-| 桌面聊天 | 内置网页端风格聊天页面，支持流式回复、历史对话、搜索和消息操作 |
-| 附件入口 | 支持图片、文本、PDF 等附件入口，图片可在聊天里预览 |
-| 模型信息 | 点击模型标签即可查看当前模型、上下文、GPU 层数和运行参数 |
-| 终端日志 | 在客户端里查看 llama.cpp 输出，方便排查启动和推理问题 |
-| 托盘后台 | 关闭窗口后隐藏到系统托盘，服务继续后台运行 |
-| 参数配置 | 支持模型路径、上下文、采样、GPU 层数、线程和批处理参数 |
+| Local connection | Directly launch `llama-server` from your llama.cpp directory — no extra launcher required |
+| OpenAI compatible | Serves at `http://127.0.0.1:8080/v1`, compatible with OpenClaw, Claude Code, and any OpenAI client |
+| Built-in chat | Web-style chat with streaming replies, conversation history, search, and message actions |
+| Attachments | Upload images, text files, and PDFs; images preview inline in chat |
+| Model info | Click the model badge to inspect current model, context, GPU layers, and runtime parameters |
+| Terminal logs | View llama.cpp output inside the app for easy troubleshooting |
+| System tray | Minimize to tray — server keeps running in the background |
+| Configuration | Model path, context size, sampling, GPU layers, threads, and batch parameters |
 
-## 下载
+## Downloads
 
-首次发布包会放在 GitHub Releases 页面：
+> **Note**: This app does **not** include llama.cpp binaries, model files, or GPU drivers. You need to have a working llama.cpp build on your machine.
 
-[打开 Releases](https://github.com/Qiao-920/llama-cpp-desktop/releases)
+Check the [Releases](https://github.com/minfaatong/llama-cpp-desktop/releases) page for the latest version. Choose the file for your platform:
 
-下载 `Llama.cpp-Desktop.exe` 后双击运行即可。项目本身不包含模型文件和 llama.cpp 二进制文件，需要你本机已经有可用的 llama.cpp Windows 构建目录。
+| Platform | Architecture | File |
+|----------|-------------|------|
+| Windows | x64 | `Llama.cpp-Desktop-{version}-win-x64.exe` |
+| macOS | Apple Silicon (M1+) | `Llama.cpp-Desktop-{version}-mac-arm64.dmg` |
+| Linux | x64 | `Llama.cpp-Desktop-{version}-linux-x64.AppImage` |
+| Linux | ARM64 | `Llama.cpp-Desktop-{version}-linux-arm64.AppImage` |
 
-## 快速开始
+## Quick Start
 
-1. 下载并打开 `Llama.cpp-Desktop.exe`。
-2. 在设置里选择 llama.cpp 原文件目录，或直接选择 `llama-server.exe`。
-3. 选择你的 GGUF 模型文件。
-4. 保存配置并启动服务。
-5. 使用内置聊天，或把 `http://127.0.0.1:8080/v1` 接入 OpenAI 兼容客户端。
+1. Download and run the appropriate file for your OS.
+2. In the settings, point to your llama.cpp directory (select `llama-server.exe` on Windows, or `llama-server` on macOS/Linux).
+3. Select a GGUF model file from your machine.
+4. Save the config and start the server.
+5. Use the built-in chat, or connect `http://127.0.0.1:8080/v1` to any OpenAI-compatible client.
 
-## 开发运行
+## Development
 
-```powershell
+```bash
 npm install
 npm start
 ```
 
-## 打包
+## Packaging
 
-```powershell
+```bash
 npm run dist
 ```
 
-打包产物会生成在 `dist/`，该目录不会提交到 Git。
+Build artifacts go to `dist/` (not committed to Git).
 
-## 当前限制 / Roadmap
+## Limitations / Roadmap
 
-- 当前主要面向 Windows 10 / 11。Ubuntu、macOS 等跨平台版本需要继续适配路径、进程管理、托盘和打包配置。
-- 项目不内置 llama.cpp、模型文件、显卡驱动或 CUDA / Vulkan 运行库，需要用户本机已有可用环境。
-- 图片入口可以预览并发送图片，但真正理解图片需要视觉模型和对应的 `mmproj` 多模态投影文件。
-- 普通文本模型不能因为上传了图片就自动具备看图能力；视频理解当前暂未支持。
-- ngram、多 GPU、speculative decoding 等高级能力可以先通过“自定义附加参数”传给本机 `llama-server`，具体是否生效取决于本地 llama.cpp 版本。
-- 如果桌面端速度和原生命令行差异明显，请先复制“最终启动命令”，对比 GPU layers、上下文、batch、ubatch、threads 等参数。
-- Qwen 等 thinking 模型是否输出 `<think>` 内容取决于模型、模板和 `chat_template_kwargs`；桌面端会解析并折叠展示返回中的 `<think>...</think>`。
+- The app does **not** bundle llama.cpp, model files, GPU drivers, or CUDA/Vulkan runtimes — your machine needs a working llama.cpp environment.
+- Image attachments can be uploaded and previewed, but understanding image content requires a vision model with a corresponding `mmproj` multimodal projection file.
+- A text-only model won't gain vision capabilities just because an image was uploaded. Video understanding is not currently supported.
+- Advanced features (ngram, multi-GPU, speculative decoding) can be passed via "Custom additional arguments" — whether they work depends on your local llama.cpp version.
+- If desktop speed differs noticeably from the command line, copy the "Final launch command" and compare GPU layers, context, batch, ubatch, and threads settings.
+- For Qwen and similar thinking models, `<think>` output depends on the model, template, and `chat_template_kwargs`. The desktop UI parses and folds `<think>...</think>` blocks.
 
-## 项目结构
+## Project Structure
 
 ```text
-assets/      图标和托盘图标
-desktop/     Electron 主进程和预加载脚本
-renderer/    桌面端界面
-scripts/     图标生成脚本
+assets/      Icons and tray icons
+desktop/     Electron main process and preload scripts
+renderer/    Desktop UI
+scripts/     Icon generation scripts
 ```
 
-## 开源说明
+## Open Source Notes
 
-本仓库只包含桌面端源码，不包含：
+This repository contains only the desktop app source code. It does **not** include:
 
-- llama.cpp 二进制文件
-- GGUF / GGML 模型文件
-- 打包生成的 exe
-- 本地配置文件和运行日志
+- llama.cpp binaries
+- GGUF / GGML model files
+- Packaged executables
+- Local config files and logs
 
 ## License
 

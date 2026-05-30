@@ -131,6 +131,9 @@ jobs:
     needs: [version, build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Publish release (remove draft)
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,27 +1,66 @@
-name: Build
+name: Build & Release
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Auto-bump patch version
+        id: bump
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          npm version patch --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          git add package.json
+          git commit -m "chore: bump to v${VERSION}"
+          git tag "v${VERSION}"
+          git push origin main --tags
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: package.json
+
   build:
+    needs: version
     strategy:
       matrix:
         config:
           - os: windows-latest
-            arch: x64
-          # - os: macos-latest
-          #   arch: arm64
-          # - os: ubuntu-latest
-          #   arch: x64
+            arch: win-x64
+          - os: macos-latest
+            arch: mac-arm64
+          - os: ubuntu-latest
+            arch: linux-x64
     runs-on: ${{ matrix.config.os }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -30,25 +69,53 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run dist
+      - name: Build
+        run: npm run dist
+
+      - name: Rename artifact
+        shell: bash
+        run: |
+          for f in dist/*.{exe,dmg,AppImage}; do
+            [ -f "$f" ] || continue
+            ext="${f##*.}"
+            base="$(basename "$f" ".${ext}")"
+            dir="$(dirname "$f")"
+            # Strip any inner arch suffix already added by electron-builder
+            name="${base%-x64}"
+            name="${name%-arm64}"
+            mv "$f" "${dir}/Llama.cpp-Desktop-${{ needs.version.outputs.version }}-${{ matrix.config.arch }}.${ext}"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: llama-cpp-desktop-${{ matrix.config.arch }}
-          path: dist/
+          name: artifacts
+          path: dist/*
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          merge-multiple: true
+          name: artifacts
           path: dist/
 
-      - uses: softprops/action-gh-release@v2
+      - name: Generate release notes
+        run: |
+          echo "## Llama.cpp Desktop v${{ needs.version.outputs.version }}" > release-notes.md
+          echo "" >> release-notes.md
+          echo "### Downloads" >> release-notes.md
+          for f in dist/*; do
+            size=$(du -h "$f" | cut -f1)
+            echo "- \`$(basename "$f")\` ($size)" >> release-notes.md
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.version.outputs.version }}
+          name: Llama.cpp Desktop v${{ needs.version.outputs.version }}
+          body_path: release-notes.md
           files: dist/*

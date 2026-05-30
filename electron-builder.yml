@@ -11,12 +11,16 @@ win:
   icon: assets/llama-cpp.ico
   target:
     - portable
-  artifactName: Llama.cpp-Desktop.${ext}
+  artifactName: Llama.cpp-Desktop-${arch}.${ext}
 mac:
+  icon: assets/llama-cpp.icns
   target:
     - dmg
+  artifactName: Llama.cpp-Desktop-${arch}.${ext}
 linux:
+  icon: assets/llama-cpp.png
   target:
     - AppImage
+  artifactName: Llama.cpp-Desktop-${arch}.${ext}
 asar: true
 compression: normal

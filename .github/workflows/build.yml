@@ -54,6 +54,8 @@ jobs:
             arch: mac-arm64
           - os: ubuntu-latest
             arch: linux-x64
+          - os: ubuntu-latest
+            arch: linux-arm64
     runs-on: ${{ matrix.config.os }}
 
     steps:
@@ -67,7 +69,19 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Set up QEMU for ARM64
+        if: ${{ matrix.config.arch == 'linux-arm64' }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - run: npm ci
+
+      - name: Install system deps (Linux)
+        if: startsWith(matrix.config.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2
 
       - name: Build
         run: npm run dist
@@ -80,7 +94,6 @@ jobs:
             ext="${f##*.}"
             base="$(basename "$f" ".${ext}")"
             dir="$(dirname "$f")"
-            # Strip any inner arch suffix already added by electron-builder
             name="${base%-x64}"
             name="${name%-arm64}"
             mv "$f" "${dir}/Llama.cpp-Desktop-${{ needs.version.outputs.version }}-${{ matrix.config.arch }}.${ext}"
